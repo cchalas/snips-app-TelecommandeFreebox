@@ -8,8 +8,13 @@
 
 Permet le control de la freebox révolution V6 via snips.
 
-Il vous faudra récuperer le code de votre télécommande pour ce faire :
+Il vous faudra récuperer :
+- le code de votre télécommande pour ce faire :
 Dans les **réglages** de la freebox player ensuite **système**, **informations freebox player et server**, vous verrez alors à droite de l'écran : **Code télécommande réseau**
+- le numéro hd de l'url de la remote commande, ce devrait être 1 ou 2 si multi room. Pour le savoir essayer les url suivantes en remplaçant FreeRemoteCode pa le code de votre télécommande pour allumer ou éteindre la freeboxtv :
+    http://hd1.freebox.fr/pub/remote_control?code=FreeRemoteCode&key=power
+    ou
+    http://hd2.freebox.fr/pub/remote_control?code=FreeRemoteCode&key=power
 
 ## Démo
 
