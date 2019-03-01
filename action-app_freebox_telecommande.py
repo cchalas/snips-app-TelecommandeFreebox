@@ -17,9 +17,6 @@ MQTT_IP_ADDR = "localhost"
 MQTT_PORT = 1883
 MQTT_ADDR = "{}:{}".format(MQTT_IP_ADDR, str(MQTT_PORT))
 
-REMOTE_ADDR = 'http://hd2.freebox.fr/pub/remote_control?code='
-
-
 class TelecommandeFreebox(object):
     """Class used to wrap action code with mqtt connection
         Please change the name refering to your application
@@ -29,9 +26,13 @@ class TelecommandeFreebox(object):
         # get the configuration if needed
         try:
             self.config = SnipsConfigParser.read_configuration_file(CONFIG_INI)
+            self.hdnumber = self.config.get("secret").get("hdnumber")
+            self.freeremotecode = self.config.get("secret").get("freeremotecode")
+            self.defaultchannel = self.config.get("secret").get("defaultchannel")
+            self.defaultvolume = self.config.get("secret").get("defaultvolume")
+            self.remoteaddr = 'http://hd'+self.hdnumber+'.freebox.fr/pub/remote_control?code='+self.freeremotecode
         except :
             self.config = None
-
 
         # start listening to MQTT
         self.start_blocking()
@@ -56,214 +57,209 @@ class TelecommandeFreebox(object):
             telecommande_msg = "Je ne comprend pas ce que vous me demandez"
         #else:
 
-        FREEREMOTECODE = self.config.get("secret").get("freeremotecode")
-
-
         print "Channel"
         if commandeFreebox == 'power':
-            self.powerFreebox(FREEREMOTECODE)
+            self.powerFreebox()
         elif commandeFreebox == 'pip':
-            self.pip(FREEREMOTECODE)
+            self.pip()
         elif commandeFreebox == 'switchpip':
-            self.switchPip(FREEREMOTECODE)
+            self.switchPip()
         elif commandeFreebox == 'stopip':
-            self.stopPip(FREEREMOTECODE)
+            self.stopPip()
         elif commandeFreebox == 'direct':
-            self.direct(FREEREMOTECODE)
+            self.direct()
         elif commandeFreebox == 'rewind':
-            self.rewind(FREEREMOTECODE)
+            self.rewind()
         elif commandeFreebox == 'forward':
-            self.forward(FREEREMOTECODE)
+            self.forward()
         elif (commandeFreebox == 'play') or (commandeFreebox == 'pause'):
-            self.playPause(FREEREMOTECODE)
+            self.playPause()
         elif (commandeFreebox == 'mute') or (commandeFreebox =='unmute'):
-            self.muteUnmute(FREEREMOTECODE)
+            self.muteUnmute()
         elif commandeFreebox == 'volDown':
-            self.volDown(FREEREMOTECODE)
+            self.volDown()
         elif commandeFreebox == 'volup':
-            self.volUp(FREEREMOTECODE)
+            self.volUp()
         elif commandeFreebox == 'television' :
-            self.television(FREEREMOTECODE)
+            self.television()
         elif commandeFreebox=='twitch':
-            self.twitch(FREEREMOTECODE)
+            self.twitch()
         elif commandeFreebox == 'sortprogrammetv' :
-            self.exitProgTv(FREEREMOTECODE)
+            self.exitProgTv()
         elif commandeFreebox == 'programmetv':
-            self.progTv(FREEREMOTECODE)
+            self.progTv()
         #elif (subcommandeFreebox is not None) and (subcommandeFreebox == 'chaîne'):
         #    if (commandeFreebox == 'next') :
-        #        self.nextChannel(FREEREMOTECODE)
+        #        self.nextChannel()
         #    elif (commandeFreebox== 'previous'):
-        #        self.previousChannel(FREEREMOTECODE)
+        #        self.previousChannel()
         elif (commandeFreebox == 'next'):
-            self.right(FREEREMOTECODE)
+            self.right()
         elif (commandeFreebox == 'previous') :
-            selft.left(FREEREMOTECODE)
+            selft.left()
         else :
-            self.channelChange(commandeFreebox,FREEREMOTECODE)
+            self.channelChange(commandeFreebox)
 
             #telecommande_msg = 'J\'allume la télévision'
         # if need to speak the execution result by tts
         #    hermes.publish_start_session_notification(intent_message.site_id, telecommande_msg, "FreeboxTelecommande")
         #
-    def nextChannel(self,FREEREMOTECODE):
+    def nextChannel(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=prgm_inc')
+        requests.get(self.remoteaddr+'&key=prgm_inc')
 
-    def previousChannel(self,FREEREMOTECODE):
+    def previousChannel(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=prgm_dec')
+        requests.get(self.remoteaddr+'&key=prgm_dec')
 
-    def left(self,FREEREMOTECODE):
+    def left(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=left')
+        requests.get(self.remoteaddr+'&key=left')
 
-    def right(self,FREEREMOTECODE):
+    def right(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=right')
+        requests.get(self.remoteaddr+'&key=right')
 
-    def next(self,FREEREMOTECODE):
+    def next(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&KEY=next')
+        requests.get(self.remoteaddr+'&KEY=next')
 
-    def previous(self,FREEREMOTECODE):
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&KEY=prev')
+    def previous(self):
+        requests.get(self.remoteaddr+'&KEY=prev')
 
-    def powerFreebox(self,FREEREMOTECODE):
+    def powerFreebox(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=power')
+        requests.get(self.remoteaddr+'&key=power')
         #If a default channel is set the freebox zap on it
-        DEFAULT_CHANNEL = self.config.get("secret").get("defaultchannel")
-        DEFAULT_VOLUME = self.config.get("secret").get("defaultvolume")
 
-        if DEFAULT_CHANNEL != None :
+        if self.defaultchannel != None :
             time.sleep(18)
             # If a default value for the volum is set then the freebox volume go to zeor and
             # step by step up
-            if DEFAULT_VOLUME != None:
-                self.volDown(FREEREMOTECODE)
-                self.volDown(FREEREMOTECODE)
-                self.volDown(FREEREMOTECODE)
-                self.volDown(FREEREMOTECODE)
-                for i in range(0,int(DEFAULT_VOLUME)) :
-                        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=vol_inc')
-            self.television(FREEREMOTECODE)
+            if self.defaultvolume != None:
+                self.volDown()
+                self.volDown()
+                self.volDown()
+                self.volDown()
+                for i in range(0,int(self.defaultvolume)) :
+                        requests.get(self.remoteaddr+'&key=vol_inc')
+            self.television()
             time.sleep(2)
-            self.channelChange(DEFAULT_CHANNEL,FREEREMOTECODE)
+            self.channelChange(self.defaultchannel)
 
-    def switchPip(self,FREEREMOTECODE):
+    def switchPip(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=red')
+        requests.get(self.remoteaddr+'&key=red')
 
-    def stopPip(self,FREEREMOTECODE):
+    def stopPip(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=green')
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=ok')
+        requests.get(self.remoteaddr+'&key=green')
+        requests.get(self.remoteaddr+'&key=ok')
 
-    def pip(self,FREEREMOTECODE):
+    def pip(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=yellow')
+        requests.get(self.remoteaddr+'&key=yellow')
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=yellow')
+        requests.get(self.remoteaddr+'&key=yellow')
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=right')
+        requests.get(self.remoteaddr+'&key=right')
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=ok')
+        requests.get(self.remoteaddr+'&key=ok')
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=red')
+        requests.get(self.remoteaddr+'&key=red')
 
-    def direct(self,FREEREMOTECODE):
+    def direct(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=green')
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=ok')
+        requests.get(self.remoteaddr+'&key=green')
+        requests.get(self.remoteaddr+'&key=ok')
 
-    def rewind(self,FREEREMOTECODE):
+    def rewind(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=bwd&long=true')
+        requests.get(self.remoteaddr+'&key=bwd&long=true')
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=bwd&long=true')
+        requests.get(self.remoteaddr+'&key=bwd&long=true')
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=bwd&long=true')
+        requests.get(self.remoteaddr+'&key=bwd&long=true')
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=bwd&long=true')
-        time.sleep(1)
-
-    def forward(self,FREEREMOTECODE):
-        time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=fwd&long=true')
-        time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=fwd&long=true')
-        time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=fwd&long=true')
+        requests.get(self.remoteaddr+'&key=bwd&long=true')
         time.sleep(1)
 
-    def playPause(self,FREEREMOTECODE):
+    def forward(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=play')
+        requests.get(self.remoteaddr+'&key=fwd&long=true')
+        time.sleep(1)
+        requests.get(self.remoteaddr+'&key=fwd&long=true')
+        time.sleep(1)
+        requests.get(self.remoteaddr+'&key=fwd&long=true')
+        time.sleep(1)
 
-    def muteUnmute(self,FREEREMOTECODE):
+    def playPause(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=mute')
+        requests.get(self.remoteaddr+'&key=play')
 
-    def volDown(self,FREEREMOTECODE):
+    def muteUnmute(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=vol_dec&long=true')
+        requests.get(self.remoteaddr+'&key=mute')
 
-    def volUp(self,FREEREMOTECODE):
+    def volDown(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=vol_inc&long=true')
+        requests.get(self.remoteaddr+'&key=vol_dec&long=true')
 
-    def television(self,FREEREMOTECODE):
+    def volUp(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=home')
-        time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=home')
-        time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=ok')
+        requests.get(self.remoteaddr+'&key=vol_inc&long=true')
 
-    def exitProgTv(self,FREEREMOTECODE):
+    def television(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=red')
+        requests.get(self.remoteaddr+'&key=home')
+        time.sleep(1)
+        requests.get(self.remoteaddr+'&key=home')
+        time.sleep(1)
+        requests.get(self.remoteaddr+'&key=ok')
 
-    def progTv(self,FREEREMOTECODE):
+    def exitProgTv(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=home')
+        requests.get(self.remoteaddr+'&key=red')
+
+    def progTv(self):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=home')
+        requests.get(self.remoteaddr+'&key=home')
+        time.sleep(1)
+        requests.get(self.remoteaddr+'&key=home')
         time.sleep(2)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=ok')
+        requests.get(self.remoteaddr+'&key=ok')
         time.sleep(6)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=green')
+        requests.get(self.remoteaddr+'&key=green')
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=down')
+        requests.get(self.remoteaddr+'&key=down')
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=ok')
+        requests.get(self.remoteaddr+'&key=ok')
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=ok')
+        requests.get(self.remoteaddr+'&key=ok')
         time.sleep(1)
 
-    def twitch(selft,FREEREMOTECODE):
+    def twitch(selft):
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=home')
+        requests.get(self.remoteaddr+'&key=home')
         time.sleep(1)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=home')
+        requests.get(self.remoteaddr+'&key=home')
         time.sleep(3)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=left')
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=left')
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=up')
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=up')
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=ok')
+        requests.get(self.remoteaddr+'&key=left')
+        requests.get(self.remoteaddr+'&key=left')
+        requests.get(self.remoteaddr+'&key=up')
+        requests.get(self.remoteaddr+'&key=up')
+        requests.get(self.remoteaddr+'&key=ok')
         time.sleep(4)
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=down')
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=down')
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=down')
-        requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key=down')
+        requests.get(self.remoteaddr+'&key=down')
+        requests.get(self.remoteaddr+'&key=down')
+        requests.get(self.remoteaddr+'&key=down')
+        requests.get(self.remoteaddr+'&key=down')
 
 
-    def channelChange(self,commandeFreebox,FREEREMOTECODE):
+    def channelChange(self,commandeFreebox):
         time.sleep(1)
         for digit in commandeFreebox:
-            requests.get(REMOTE_ADDR+FREEREMOTECODE+'&key='+digit)
+            requests.get(self.remoteaddr+'&key='+digit)
 
     # --> Master callback function, triggered everytime an intent is recognized
     def FreeboxTelecommande_callback(self,hermes, intent_message):
