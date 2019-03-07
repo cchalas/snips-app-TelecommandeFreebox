@@ -1,15 +1,15 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
-import requests
-import time
 from snipsTools import SnipsConfigParser
 from hermes_python.hermes import Hermes
 from hermes_python.ontology import *
 import io
+import requests
+import time
+import json
 
 CONFIG_INI = "config.ini"
-
 # If this skill is supposed to run on the satellite,
 # please get this mqtt connection info from <config.ini>
 # Hint: MQTT server is always running on the master device
@@ -17,263 +17,238 @@ MQTT_IP_ADDR = "localhost"
 MQTT_PORT = 1883
 MQTT_ADDR = "{}:{}".format(MQTT_IP_ADDR, str(MQTT_PORT))
 
-class TelecommandeFreebox(object):
+class FreeboxMultiRoom(object):
     """Class used to wrap action code with mqtt connection
         Please change the name refering to your application
     """
 
     def __init__(self):
         # get the configuration if needed
+
         try:
             self.config = SnipsConfigParser.read_configuration_file(CONFIG_INI)
-            self.hdnumber = self.config.get("secret").get("hdnumber")
-            self.freeremotecode = self.config.get("secret").get("freeremotecode")
-            self.defaultchannel = self.config.get("secret").get("defaultchannel")
-            self.defaultvolume = self.config.get("secret").get("defaultvolume")
-            self.remoteaddr = 'http://hd'+self.hdnumber+'.freebox.fr/pub/remote_control?code='+self.freeremotecode
         except :
             self.config = None
 
+        self.hdnumber = self.config.get("secret").get("hdnumber")
+        self.freeremotecode = self.config.get("secret").get("freeremotecode")
+        self.defaultchannel = self.config.get("secret").get("defaultchannel")
+        self.remoteaddr = 'http://hd'+self.hdnumber+'.freebox.fr/pub/remote_control?code='+self.freeremotecode
+        
         # start listening to MQTT
         self.start_blocking()
 
-    def askFreeboxCommand_callback(self, hermes, intent_message):
-        # terminate the session first if not continue
 
-        print "Lancement de l'application Telecommandereebox"
+    # --> Sub callback function, one per intent
+    def ChgtEtat_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        
+        # action code goes here..
+        print '[Url]'.format(self.remoteaddr)
+        print '[Received] intent ChgtEtat: {}'.format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=power')
+        time.sleep(1)
+        requests.get(self.remoteaddr+'&key=home')
+        time.sleep(.5)
+        requests.get(self.remoteaddr+'&key=home')
+        time.sleep(.5)
+        requests.get(self.remoteaddr+'&key=ok')
+        time.sleep(1)
+        requests.get(self.remoteaddr+'&key=0')
+        
+        # if need to speak the execution result by tts
+        hermes.publish_start_session_notification(intent_message.site_id, "changement etat effectue", "")
+
+    def ChgtChaine_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
         hermes.publish_end_session(intent_message.session_id, "")
 
-        commandeFreebox = None
-        subcommandeFreebox = None
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        time.sleep(1)
+        
+        numchaine = intent_message.slots.chaine.first().value
+        
+        for digit in numchaine:
+            requests.get(self.remoteaddr+'&key='+digit)
+            time.sleep(.5)
 
-        print '[Recep] intent value: {}'.format(intent_message.slots.TvCommand.first().value)
+    def VolInc_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
 
-        #if intent_message.slots.TvChannel.first().value == 'oncle':
-            #print '[Received] intent: {}'.format(intent_message.slots.TvChannel)
-        commandeFreebox = intent_message.slots.TvCommand.first().value
-        #subcommandeFreebox = intent_message.slots.TvSubCommand.first().value
-
-        if commandeFreebox is None:
-            telecommande_msg = "Je ne comprend pas ce que vous me demandez"
-        #else:
-
-        print "Channel"
-        if commandeFreebox == 'power':
-            self.powerFreebox()
-        elif commandeFreebox == 'pip':
-            self.pip()
-        elif commandeFreebox == 'switchpip':
-            self.switchPip()
-        elif commandeFreebox == 'stopip':
-            self.stopPip()
-        elif commandeFreebox == 'direct':
-            self.direct()
-        elif commandeFreebox == 'rewind':
-            self.rewind()
-        elif commandeFreebox == 'forward':
-            self.forward()
-        elif (commandeFreebox == 'play') or (commandeFreebox == 'pause'):
-            self.playPause()
-        elif (commandeFreebox == 'mute') or (commandeFreebox =='unmute'):
-            self.muteUnmute()
-        elif commandeFreebox == 'volDown':
-            self.volDown()
-        elif commandeFreebox == 'volup':
-            self.volUp()
-        elif commandeFreebox == 'television' :
-            self.television()
-        elif commandeFreebox=='twitch':
-            self.twitch()
-        elif commandeFreebox == 'sortprogrammetv' :
-            self.exitProgTv()
-        elif commandeFreebox == 'programmetv':
-            self.progTv()
-        #elif (subcommandeFreebox is not None) and (subcommandeFreebox == 'chaîne'):
-        #    if (commandeFreebox == 'next') :
-        #        self.nextChannel()
-        #    elif (commandeFreebox== 'previous'):
-        #        self.previousChannel()
-        elif (commandeFreebox == 'next'):
-            self.right()
-        elif (commandeFreebox == 'previous') :
-            selft.left()
-        else :
-            self.channelChange(commandeFreebox)
-
-            #telecommande_msg = 'J\'allume la télévision'
-        # if need to speak the execution result by tts
-        #    hermes.publish_start_session_notification(intent_message.site_id, telecommande_msg, "FreeboxTelecommande")
-        #
-    def nextChannel(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=prgm_inc')
-
-    def previousChannel(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=prgm_dec')
-
-    def left(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=left')
-
-    def right(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=right')
-
-    def next(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&KEY=next')
-
-    def previous(self):
-        requests.get(self.remoteaddr+'&KEY=prev')
-
-    def powerFreebox(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=power')
-        #If a default channel is set the freebox zap on it
-
-        if self.defaultchannel != None :
-            time.sleep(18)
-            # If a default value for the volum is set then the freebox volume go to zeor and
-            # step by step up
-            if self.defaultvolume != None:
-                self.volDown()
-                self.volDown()
-                self.volDown()
-                self.volDown()
-                for i in range(0,int(self.defaultvolume)) :
-                        requests.get(self.remoteaddr+'&key=vol_inc')
-            self.television()
-            time.sleep(2)
-            self.channelChange(self.defaultchannel)
-
-    def switchPip(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=red')
-
-    def stopPip(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=green')
-        requests.get(self.remoteaddr+'&key=ok')
-
-    def pip(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=yellow')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=yellow')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=right')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=ok')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=red')
-
-    def direct(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=green')
-        requests.get(self.remoteaddr+'&key=ok')
-
-    def rewind(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=bwd&long=true')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=bwd&long=true')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=bwd&long=true')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=bwd&long=true')
-        time.sleep(1)
-
-    def forward(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=fwd&long=true')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=fwd&long=true')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=fwd&long=true')
-        time.sleep(1)
-
-    def playPause(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=play')
-
-    def muteUnmute(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=mute')
-
-    def volDown(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=vol_dec&long=true')
-
-    def volUp(self):
-        time.sleep(1)
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
         requests.get(self.remoteaddr+'&key=vol_inc&long=true')
 
-    def television(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=home')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=home')
-        time.sleep(1)
+    def VolDec_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=vol_dec&long=true')
+
+    def MuteUnmute_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=mute')
+
+    def LectAvanRap_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=fwd')
+
+    def LectPlay_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=play')
+
+    def LectRetRap_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=bwd')
+
+    def PipAct_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=green')
+        time.sleep(.1)
+        requests.get(self.remoteaddr+'&key=down')
+        time.sleep(.1)
+        requests.get(self.remoteaddr+'&key=down')
+        time.sleep(.1)
+        requests.get(self.remoteaddr+'&key=down')
+        time.sleep(.1)
+        requests.get(self.remoteaddr+'&key=ok')
+        time.sleep(.1)
         requests.get(self.remoteaddr+'&key=ok')
 
-    def exitProgTv(self):
-        time.sleep(1)
+    def PipStop_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=green')
+        time.sleep(.25)
+        requests.get(self.remoteaddr+'&key=ok')
+
+    def PipSwitch_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
         requests.get(self.remoteaddr+'&key=red')
 
-    def progTv(self):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=home')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=home')
-        time.sleep(2)
-        requests.get(self.remoteaddr+'&key=ok')
-        time.sleep(6)
+    def PrecChaine_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=prgm_dec')
+
+    def SuivChaine_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=prgm_inc')
+
+    def TsPause_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=play')
+
+    def AffPrgTv_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
         requests.get(self.remoteaddr+'&key=green')
-        time.sleep(1)
+        time.sleep(.5)
         requests.get(self.remoteaddr+'&key=down')
-        time.sleep(1)
+        time.sleep(.5)
+        requests.get(self.remoteaddr+'&key=right')
+        time.sleep(.5)
         requests.get(self.remoteaddr+'&key=ok')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=ok')
-        time.sleep(1)
 
-    def twitch(selft):
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=home')
-        time.sleep(1)
-        requests.get(self.remoteaddr+'&key=home')
-        time.sleep(3)
-        requests.get(self.remoteaddr+'&key=left')
-        requests.get(self.remoteaddr+'&key=left')
-        requests.get(self.remoteaddr+'&key=up')
-        requests.get(self.remoteaddr+'&key=up')
+    def SortPgTv_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=red')
+
+    def TsDirect_callback(self, hermes, intent_message):
+        # terminate the session first if not continue
+        hermes.publish_end_session(intent_message.session_id, "")
+        # action code goes here...
+        print '[Received] intent : {}'+format(intent_message.intent.intent_name)
+        requests.get(self.remoteaddr+'&key=green')
         requests.get(self.remoteaddr+'&key=ok')
-        time.sleep(4)
-        requests.get(self.remoteaddr+'&key=down')
-        requests.get(self.remoteaddr+'&key=down')
-        requests.get(self.remoteaddr+'&key=down')
-        requests.get(self.remoteaddr+'&key=down')
 
 
-    def channelChange(self,commandeFreebox):
-        time.sleep(1)
-        for digit in commandeFreebox:
-            requests.get(self.remoteaddr+'&key='+digit)
+# More callback function goes here...
 
     # --> Master callback function, triggered everytime an intent is recognized
-    def FreeboxTelecommande_callback(self,hermes, intent_message):
+    def master_intent_callback(self,hermes, intent_message):
+             
         coming_intent = intent_message.intent.intent_name
+        if coming_intent == 'cchalas:ChgtEtat':
+            self.ChgtEtat_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:ChgtChaine':
+            self.ChgtChaine_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:MuteUnmute':
+            self.MuteUnmute_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:AffPrgTv':
+            self.AffPrgTv_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:LectAvanRap':
+            self.LectAvanRap_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:LectPlay':
+            self.LectPlay_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:LectRetRap':
+            self.LectRetRap_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:PipAct':
+            self.PipAct_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:PipStop':
+            self.PipStop_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:PipSwitch':
+            self.PipSwitch_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:PrecChaine':
+            self.PrecChaine_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:SortPgTv':
+            self.SortPgTv_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:SuivChaine':
+            self.SuivChaine_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:TsDirect':
+            self.TsDirect_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:TsPause':
+            self.TsPause_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:VolDec':
+            self.VolDec_callback(hermes, intent_message)
+        elif coming_intent == 'cchalas:VolInc':
+            self.VolInc_callback(hermes, intent_message)
 
-        print '[Recept] intent {}'.format(coming_intent)
-        if coming_intent == 'cchalas:ChannelFreebox':
-            self.askFreeboxCommand_callback(hermes, intent_message)
         # more callback and if condition goes here...
 
     # --> Register callback function and start MQTT
     def start_blocking(self):
         with Hermes(MQTT_ADDR) as h:
-            h.subscribe_intents(self.FreeboxTelecommande_callback).start()
+            h.subscribe_intents(self.master_intent_callback).start()
 
 if __name__ == "__main__":
-    TelecommandeFreebox()
+    FreeboxMultiRoom()
