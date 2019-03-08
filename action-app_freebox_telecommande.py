@@ -125,15 +125,15 @@ class FreeboxMultiRoom(object):
         # action code goes here...
         print '[Received] intent : {}'+format(intent_message.intent.intent_name)
         requests.get(self.remoteaddr+'&key=green')
-        time.sleep(.1)
+        time.sleep(.25)
         requests.get(self.remoteaddr+'&key=down')
-        time.sleep(.1)
+        time.sleep(.25)
         requests.get(self.remoteaddr+'&key=down')
-        time.sleep(.1)
+        time.sleep(.25)
         requests.get(self.remoteaddr+'&key=down')
-        time.sleep(.1)
+        time.sleep(.25)
         requests.get(self.remoteaddr+'&key=ok')
-        time.sleep(.1)
+        time.sleep(.25)
         requests.get(self.remoteaddr+'&key=ok')
 
     def PipStop_callback(self, hermes, intent_message):
