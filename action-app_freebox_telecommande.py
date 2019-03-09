@@ -131,9 +131,9 @@ class FreeboxMultiRoom(object):
         requests.get(self.remoteaddr+'&key=down')
         time.sleep(.25)
         requests.get(self.remoteaddr+'&key=down')
-        time.sleep(.25)
+        time.sleep(.5)
         requests.get(self.remoteaddr+'&key=ok')
-        time.sleep(.25)
+        time.sleep(.5)
         requests.get(self.remoteaddr+'&key=ok')
 
     def PipStop_callback(self, hermes, intent_message):
